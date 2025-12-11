@@ -457,7 +457,6 @@ export default function OrderDetailsModal({ order, onClose, onUpdateStatus }: Or
               {/* Shiprocket Actions */}
               {data?.data?.status !== 'Delivered' && data?.data?.status !== 'Failed'  && data?.data?.status !== 'Shipment Failed' && data?.data?.status !== 'RTO' && data?.data?.status !== 'HELDUP' && data?.data?.status !== 'Cancelled/Refunded' && data?.data?.status !== 'Cancellation Requested'&& data?.data?.status !== 'Undelivered' && (
                 <>
-                  {data?.data?.payment_status !== 'unpaid' && (
                     <div className="space-y-2 mt-4">
                       <h4 className="font-medium text-sm text-gray-700">Shiprocket</h4>
 
@@ -505,7 +504,6 @@ export default function OrderDetailsModal({ order, onClose, onUpdateStatus }: Or
                         </Button>
                       </div>
                     </div>
-                  )}
                 </>
               )}
 
