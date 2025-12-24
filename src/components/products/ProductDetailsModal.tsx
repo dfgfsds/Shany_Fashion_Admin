@@ -1,9 +1,11 @@
 import React from 'react';
-import { X } from 'lucide-react';
-import { Product } from '../../types/product';
+import { Trash2Icon, X } from 'lucide-react';
 import Button from '../Button';
-import { useQuery } from '@tanstack/react-query';
+import { InvalidateQueryFilters, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSizesApi, getVariantsProductApi } from '../../Api-Service/Apis';
+import ApiUrls from '../../Api-Service/ApiUrls';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 interface ProductDetailsModalProps {
   product: any;
@@ -12,35 +14,87 @@ interface ProductDetailsModalProps {
 }
 
 export default function ProductDetailsModal({ product, onClose, onEdit }: ProductDetailsModalProps) {
-
+  const queryClient = useQueryClient();
   const productId: any = product?.id;
+  const [confirmData, setConfirmData] = React.useState<{ id: string, type: 'size' | 'variant' } | null>(null);
+
   const VariantData: any = useQuery({
     queryKey: ['VariantData'],
     queryFn: () => getVariantsProductApi(`/product/${productId}`),
+    enabled: !!productId
   });
 
   const sizesData: any = useQuery({
     queryKey: ['getSizesData'],
     queryFn: () => getSizesApi(`/product/${productId}`),
+    enabled: !!productId
   });
 
-  // console.log(VariantData?.data?.data?.message,sizesData?.data?.data?.message)
-  // const matchingProductsArray = getCartitemsData?.data?.data?.map((item: any) => {
-  //   const matchingProduct = products?.data?.find((product: any) => product.id === item.product);
-  //   const matchingVariant = VariantData?.data?.data?.message?.find((variant: any) => variant.id === item.product_variant);
-  //   const matchingSize =sizesData?.data?.data?.message?.find((size: any) => size.id === item.product_size);
+  const handleConfirmDelete = async () => {
+    if (!confirmData) return;
+    const { id, type } = confirmData;
+    try {
+      const updateApi = await axios.delete(
+        type === "size"
+          ? `${ApiUrls?.sizes}/${id}/`
+          : `${ApiUrls?.variants}/${id}/`,
+        { data: { deleted_by: "admin" } }
+      );
+      if (updateApi) {
+        queryClient.setQueryData(['VariantData'], (old: any) => {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              message: old.data.message.filter((v: any) => v.id !== id),
+            },
+          };
+        });
+
+        // queryClient.invalidateQueries(['VariantData'] as InvalidateQueryFilters);
+        queryClient.invalidateQueries(['getSizesData'] as InvalidateQueryFilters);
+        toast.success(
+          `${type === "size" ? "Size" : "Variant"} deleted successfully!`
+        );
+        setConfirmData(null);
+      }
+    } catch (error) {
+      toast.error(`Failed to delete ${type}`);
+      console.error(error);
+    }
+  };
+
+  const handleUpdateVariant = async (variant: any) => {
+    try {
+      const updateApi = await axios.put(`${ApiUrls?.variants}/${variant.id}/`,
+        {
+          product_variant_status: !variant.product_variant_status,
+          updated_by: 'admin'
+        })
+      if (updateApi) {
+        queryClient.invalidateQueries(['VariantData'] as InvalidateQueryFilters);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'something went wrong, please try again later')
+    }
+  }
 
 
+  const handleUpdateSize = async (size: any) => {
+    try {
+      const updateApi = await axios.put(`${ApiUrls?.sizes}/${size?.id}/`,
+        {
+          product_size_status: !size.product_size_status,
+          updated_by: 'admin'
+        })
+      if (updateApi) {
+        queryClient.invalidateQueries(['getSizesData'] as InvalidateQueryFilters);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'something went wrong, please try again later')
+    }
+  }
 
-
-  console.log(productId)
-  const matchingVariant = VariantData?.data?.data?.message?.find(
-    (variant: any) => variant?.product_id === productId
-  );
-
-  const matchingSize = sizesData?.data?.data?.message?.find(
-    (size: any) => size?.product_id === productId
-  );
 
   return (
     <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -64,8 +118,8 @@ export default function ProductDetailsModal({ product, onClose, onEdit }: Produc
 
             <h3 className="text-lg font-semibold text-gray-900">{product?.name} <span className='text-slate-600 ml-3'>
               {/* {product?.weight} g */}
-              {product?.brand_name} 
-              </span></h3>
+              {product?.brand_name}
+            </span></h3>
             {/* <p className="mt-1 text-sm text-gray-500">{product?.description}</p> */}
             <div dangerouslySetInnerHTML={{ __html: product?.description }} className=" quill-content" />
 
@@ -87,33 +141,101 @@ export default function ProductDetailsModal({ product, onClose, onEdit }: Produc
               ) : ''}
 
               <div className="mt-2 space-y-4">
-                {VariantData?.data?.data?.message?.map((variety: any, index: any) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex items-center">
-                      {variety.product_variant_image_urls?.lenth && (
-                        <img
-                          src={variety.product_variant_image_urls[0]}
-                          // alt={variety.color}
-                          className="h-16 w-16 rounded object-cover"
-                        />
-                      )}
-                      <div className="ml-4">
-                        <h5 className="text-sm font-medium text-gray-900">{variety.product_variant_title}</h5>
-                        <div className="mt-1 flex flex-wrap gap-2">
-                          {sizesData?.data?.data?.message?.map((size: any, sizeIndex: any) => (
-                            <span
-                              key={sizeIndex}
-                              className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
-                            >
-                              {size.product_size} ({size.product_size_stock_quantity})
-                            </span>
-                          ))}
+                {VariantData?.data?.data?.message?.map((variant: any, index: number) => (
+                  <div
+                    key={variant.id}
+                    className="rounded-2xl border bg-white p-6 shadow-sm hover:shadow-md transition"
+                  >
+                    <div className="flex items-center justify-between mb-5">
+                      <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                        {variant?.product_variant_title}
+                      </h3>
+
+                      <div className="flex items-center gap-3">
+                        <div
+                          onClick={() => handleUpdateVariant(variant)}
+                          className={`relative w-12 h-6 rounded-full cursor-pointer transition
+    ${variant.product_variant_status ? "bg-green-500" : "bg-gray-300"}
+  `}
+                        >
+                          <span
+                            className={`absolute top-[2px] left-[2px] h-5 w-5 bg-white rounded-full transition-transform
+      ${variant.product_variant_status ? "translate-x-6" : ""}
+    `}
+                          />
                         </div>
+                        <button
+                          onClick={() =>
+                            setConfirmData({ id: variant?.id, type: "variant" })
+                          }
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2Icon size={18} />
+                        </button>
                       </div>
                     </div>
+
+                    <div className="flex gap-6 items-start">
+                      <div className="h-28 w-28 rounded-xl overflow-hidden border bg-gray-100 flex-shrink-0">
+                        {variant?.product_variant_image_urls?.length > 0 ? (
+                          <img
+                            src={variant.product_variant_image_urls[0]}
+                            alt="Variant"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-gray-400 text-sm">
+                            No Image
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 w-full max-w-[420px]">
+                        {sizesData?.data?.data?.message
+                          ?.filter((size: any) => size.variant_id === variant.id)
+                          .map((size: any, sizeIndex: number) => (
+                            <div
+                              key={sizeIndex}
+                              className="flex items-center flex-wrap gap-2 justify-between bg-gray-100 px-4 py-3 rounded-xl"
+                            >
+                              <div className="flex flex-col leading-tight">
+                                <span className="text-sm font-semibold text-gray-800 uppercase">
+                                  <span className='font-semibold pr-1'>Size:</span>{size.product_size}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <div
+                                  onClick={() => handleUpdateSize(size)}
+                                  className={`relative w-9 h-5 rounded-full cursor-pointer transition
+    ${size?.product_size_status ? "bg-green-500" : "bg-gray-300"}
+  `}
+                                >
+                                  <span
+                                    className={`absolute top-[2px] left-[2px] h-4 w-4 bg-white rounded-full transition-transform
+      ${size?.product_size_status ? "translate-x-4" : ""}
+    `}
+                                  />
+                                </div>
+
+                                {/* DELETE */}
+                                <button
+                                  onClick={() =>
+                                    setConfirmData({ id: size?.id, type: "size" })
+                                  }
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2Icon size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
                   </div>
                 ))}
               </div>
+
+
             </div>
           </div>
 
@@ -123,6 +245,35 @@ export default function ProductDetailsModal({ product, onClose, onEdit }: Produc
           </div>
         </div>
       </div>
+
+      {confirmData && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-lg p-6 shadow-lg w-96">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">
+              Confirm Delete
+            </h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to delete this {confirmData.type}?
+              This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmData(null)}
+                className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
