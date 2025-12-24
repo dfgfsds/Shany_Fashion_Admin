@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Plus, Loader2 } from 'lucide-react';
+import { X, Plus, Loader2, Trash2Icon } from 'lucide-react';
 import Button from '../Button';
 import Input from '../Input';
 import { ProductForm } from '../../types/product';
@@ -160,25 +160,25 @@ export const ProductSchema = Yup.object().shape({
 
         // Sizes (if you have size section)
         sizes: Yup.array()
-        .of(
-          Yup.object().shape({
-            product_size: Yup.string().required("Size label is required"),
-            product_size_price: Yup.number()
-              .typeError("Size price must be a number")
-              .required("Size price is required")
-              .min(1, "Size price must be greater than 0"),
-            product_size_stock_quantity: Yup.number()
-              .typeError("Size stock must be a number")
-              .min(0, "Size stock cannot be negative")
-              .notRequired(),
+          .of(
+            Yup.object().shape({
+              product_size: Yup.string().required("Size label is required"),
+              product_size_price: Yup.number()
+                .typeError("Size price must be a number")
+                .required("Size price is required")
+                .min(1, "Size price must be greater than 0"),
+              product_size_stock_quantity: Yup.number()
+                .typeError("Size stock must be a number")
+                .min(0, "Size stock cannot be negative")
+                .notRequired(),
+            })
+          )
+          .nullable()
+          .transform((value, originalValue) => {
+            // remove empty objects so validation won't fail on blank sizes
+            if (!Array.isArray(originalValue)) return [];
+            return originalValue.filter((obj: any) => obj?.product_size || obj?.product_size_price);
           })
-        )
-        .nullable()
-        .transform((value, originalValue) => {
-          // remove empty objects so validation won't fail on blank sizes
-          if (!Array.isArray(originalValue)) return [];
-          return originalValue.filter((obj: any) => obj?.product_size || obj?.product_size_price);
-        })
       })
     )
     .nullable(),
@@ -224,7 +224,7 @@ export default function ProductModal({
     queryKey: ["getCategoriesWithSubcategoriesData", id],
     queryFn: () => getCategoriesWithSubcategoriesApi(`vendor/${id}/`),
   })
-  
+
   const handleCategoryChange = (selectedOption: any) => {
     setValue('category', selectedOption?.value);
     setValue('subcategory', null);
@@ -372,7 +372,7 @@ export default function ProductModal({
         height: data?.height,
         discount: data?.discount,
         category: data?.category,
-        subcategory: data?.subcategory, 
+        subcategory: data?.subcategory,
         stock_quantity: data?.stock_quantity,
         ...(productForm
           ? {}
@@ -409,13 +409,13 @@ export default function ProductModal({
             id: sizeItem?.id,
             product_size: sizeItem?.product_size,
             product_size_price: sizeItem?.product_size_price,
-            product_size_breadth: item?.product_variant_breadth,
-            product_size_discount: item?.product_variant_discount,
-            product_size_height: item?.product_variant_height,
-            product_size_length: item?.product_variant_length,
-            // product_size_sku: item?.product_variant_sku,
-            product_size_stock_quantity: item?.product_variant_stock_quantity,
-            product_size_weight: item?.product_variant_weight,
+            product_size_breadth: sizeItem?.product_size_breadth,
+            product_size_discount: sizeItem?.product_size_discount,
+            product_size_height: sizeItem?.product_size_height,
+            product_size_length: sizeItem?.product_size_length,
+            product_size_sku: sizeItem?.product_size_sku,
+            product_size_stock_quantity: sizeItem?.product_size_stock_quantity,
+            product_size_weight: sizeItem?.product_size_weight,
             ...(productForm ? { updated_by: "vendor" } : { created_by: "vendor" }),
           })),
         })),
@@ -479,13 +479,13 @@ export default function ProductModal({
                   <p className="text-red-500 text-sm mt-1">{typeof errors.name?.message === 'string' ? errors.name.message : ''}</p>
                 )}
               </div>
-               <div className='col-span-6 lg:col-span-6'>
+              <div className='col-span-6 lg:col-span-6'>
                 <Input label="Slug Name" required {...register('slug_name', { required: true })} />
                 {errors.slug_name && (
                   <p className="text-red-500 text-sm mt-1">{typeof errors.slug_name?.message === 'string' ? errors.slug_name.message : ''}</p>
                 )}
               </div>
-              
+
               <div className='col-span-12 lg:col-span-12 py-1'>
                 <ImageUpload required images={images} onChange={setImages} />
               </div>
@@ -699,7 +699,8 @@ export default function ProductModal({
                       onClick={() => removeVariety(varietyIndex)}
                       className="absolute right-2 top-2 text-gray-400 hover:text-gray-500"
                     >
-                      <X className="h-5 w-5" />
+                      {/* <X className="h-5 w-5 text-red-500" /> */}
+                      <Trash2Icon className="h-5 w-5 text-red-500" />
                     </button>
                   </div>
 
@@ -864,13 +865,13 @@ export default function ProductModal({
                         )
                       }
                     </div>
-                    {/* <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
+                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
                       <Input
                         type="number"
                         label="Stock Quantity"
                         {...register(`varieties.${varietyIndex}.product_variant_stock_quantity`, { required: true })}
                       />
-                    </div> */}
+                    </div>
                   </div>
 
                   <SizeSection
@@ -881,17 +882,17 @@ export default function ProductModal({
                 </div>
               ))}
 
-              {/* <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-4">
                 <Button
                   type="button"
                   onClick={() => appendVariety({ color: '' })}
-                  variant="outline"
+                  // variant="outline"
                   className="text-sm"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Variety
                 </Button>
-              </div> */}
+              </div>
             </div>
             {errorMessage && (
               <p className="text-red-500 mt-2">{errorMessage}</p>

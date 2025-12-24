@@ -19,6 +19,7 @@ import formatDateTime from '../lib/utils'
 import Coupons from './Coupons/Coupons';
 import ApiUrls from '../Api-Service/ApiUrls';
 import axios from 'axios';
+import SocialMedia from '../components/SocialMedia';
 
 const subscriptionPlans = [
   { id: 'monthly', name: 'Monthly', price: 1000, duration: 1, durationUnit: 'month' },
@@ -148,7 +149,7 @@ export default function StoreSettings() {
     // updateVendorOtherDetailsApi
     if (siteEditKey === 'support_email' || siteEditKey === 'support_contact') {
       try {
-        const response = await updateVendorOtherDetailsApi(`${vendorSiteDetails?.vendor_other_details?.id}`, { ...payload});
+        const response = await updateVendorOtherDetailsApi(`${vendorSiteDetails?.vendor_other_details?.id}`, { ...payload });
         if (response) {
           setOpenSiteModal(false);
           queryClient.invalidateQueries(["getVendorWithSiteDetailsData"] as InvalidateQueryFilters);
@@ -313,7 +314,7 @@ export default function StoreSettings() {
                   <div
                     key={address.id}
                     className={`flex items-start justify-between p-4 bg-white rounded-lg shadow-sm  ${address?.is_primary === false && 'border-green-600 border-2'}`}
-                  onClick={() => selectAdress(address.id)}
+                    onClick={() => selectAdress(address.id)}
                   >
                     <div className="flex-1">
                       <div className='flex gap-1'>
@@ -761,7 +762,7 @@ export default function StoreSettings() {
               </div>
             </div>
           </div>
-
+            <SocialMedia />
         </div>
       </div>
 
@@ -877,7 +878,7 @@ export default function StoreSettings() {
 
       <AddressForm
         openModal={openModal}
-        handleClose={() => {setOpenMoadl(!openModal), setEditData("")}}
+        handleClose={() => { setOpenMoadl(!openModal), setEditData("") }}
         editData={editData}
         setEditData={setEditData}
         pickupValue={vendorSiteDetails?.vendor_site_details?.delivery_partner}
